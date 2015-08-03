@@ -2,8 +2,7 @@
 <html>
   <head>
     <meta name="Author" cotent="Chen Shao" />
-    <link rel="stylesheet" type="button/css" href="button.css" />
-    <link rel="stylesheet" type="text/css" href="canvas.css" />
+    <link rel="stylesheet" type="text/css" href="style.css" />
     
     <title>Drawing</title>
     <!-- Link to external JavaScript -->
@@ -13,8 +12,6 @@
     <script>
       $(document).ready(function () {
         //Set up some globals
-        var ele = document.getElementById("penColor");
-        var currentColor = ele.options[ele.selectedIndex].value;
         var t = 0.5;
         var paint = false;
         var clickX = new Array();
@@ -26,18 +23,23 @@
         var erase = false;
         var tol = 5;
         
-        // choose pen color for drawing
-        var btnPen = document.getElementById("btnChoosePen");
-        btnPen.onclick = function(){
-          ele = document.getElementById("penColor");
-          currentColor = ele.options[ele.selectedIndex].value;
-          erase = false;
+        // get user selected pen color for drawing
+        var selectColor = document.getElementById("penColor");
+        var currentColor = "000000";
+        selectColor.onchange = function(){
+          currentColor = selectColor.options[selectColor.selectedIndex].value;
         }
         
         // find if erase is activated
         var btnEraser = document.getElementById("btnEraser");
         btnEraser.onclick = function(){
-          erase = true;
+          if (!erase){
+            erase = true;
+            btnEraser.value = "Stop Erasing";
+          } else {
+            erase = false;
+            btnEraser.value = "Erase";
+          }
         }
         
         // Set up our canvas
@@ -61,11 +63,11 @@
         webDataRef.child(".info/connected").on("value", function(snap) {
           if (snap.val() === true) {
             connInd.value = "Online! Enjoy Playing!";
-            connInd.style.backgroundColor = "Green";
+            connInd.setAttribute("class","button square green");
             canMakeChange = true;
           } else {
             connInd.value = "Offline! Check Network!";
-            connInd.style.backgroundColor = "Red";
+            connInd.setAttribute("class","button square red");
             canMakeChange = false;
           }
         });
@@ -230,27 +232,26 @@
     </script>
   </head>
   <body>
-    <input type="button" class="greenButton" id="connInd" value="Undefined" />
+    <input type="button" class="button green square" id="connInd" value="Undefined" />
     <br />
     <br />
-    <input type="button" id="ChangePage" onclick="location.href='index.html';" value="Press" />
+    <input type="button" class="button square blue" id="ChangePage" onclick="location.href='index.html';" value="Press" />
     <br />
     <br />
-    <h3>Choose Pen Color</h3>
-    <select id="penColor">
-      <option value="000000" selected="selected">Black</option>
+    <select id="penColor" class="select square">
+      <option value="000000" selected="selected">Choose Pen Color (Default: Black)</option>
+      <option value="000000">Black</option>
       <option value="008000">Green</option>
       <option value="FF00FF">Magenta</option>
       <option value="0000CD">Blue</option>
       <option value="FF0000">Red</option>
       <option value="FFFF00">Yellow</option>
     </select>
-    <input type="button" id="btnChoosePen" value="Select" />
-    <input type="button" id="btnEraser" value="Erase" />
+    <input type="button" class="button square red" id="btnEraser" value="Erase" />
     <br />
     <br />
     <div class="l-demo-container">
-      <canvas id="canvas" width="600px" height="400px" style="border:1px solid #000000;">
+      <canvas id="canvas" class="canvas" width="600px" height="400px" style="border:1px solid #000000;">
       </canvas>
     </div>
   </body>

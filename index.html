@@ -2,7 +2,7 @@
 <html>
   <head>
     <meta name="Author" cotent="Chen Shao" />
-    <link rel="stylesheet" type="button/css" href="button.css" />
+    <link rel="stylesheet" type="text/css" href="style.css" />
     
     <title>Web App for Classkick</title>
     <!-- Link to external JavaScript -->
@@ -10,10 +10,10 @@
     
   </head>
   <body>
-    <input type="button" class="greenButton" id="connInd" value="Undefined" />
+    <input type="button" class="button green square" id="connInd" value="Undefined" />
     <br />
     <br />
-    <input type="button" id="ChangePage" onclick="location.href='draw.html';" value="Draw" />
+    <input type="button" class="button square blue" id="ChangePage" onclick="location.href='draw.html';" value="Draw" />
     <br />
     <br />
     <script language="javascript" type="text/javascript">
@@ -26,17 +26,17 @@
       webDataRef.child(".info/connected").on("value", function(snap) {
         if (snap.val() === true) {
           connInd.value = "Online! Enjoy Playing!";
-          connInd.style.backgroundColor = "Green";
+          connInd.setAttribute("class","button square green");
           canMakeChange = true;
         } else {
           connInd.value = "Offline! Check Network!";
-          connInd.style.backgroundColor = "Red";
+          connInd.setAttribute("class","button square red");
           canMakeChange = false;
         }
       });
       
       // Add buttons
-      var k = 2;  // set k value
+      var k = 4;  // set k value, can be changed from 2 ~ 12
       var btns = addButtons(k, webDataRef.child("buttons"));
       
       function addButtons(k, ref) {
@@ -47,13 +47,11 @@
           for (var j=0;j<k;j++) {
             // k buttons per row
             numId = i * k + j;
+            
+            // styling created buttons
             btns[numId] = document.createElement("button");
-            btns[numId].style.width = "300px";
-            btns[numId].style.height = "100px";
-            // set current state from database
-            btns[numId].style.backgroundColor = "White";
+            btns[numId].setAttribute("class","button rounded green");
             btns[numId].id = numId;
-            btns[numId].name = "B"+String(numId);
             btns[numId].value = "Open";
             btns[numId].onclick = function() {
               // change buttons status when clicked and update to Firebase
@@ -61,15 +59,15 @@
                 var updateObj = {};
                 if (this.value == "Open") {
                   this.value = "Occupied";
-                  this.style.backgroundColor = "Red";
+                  this.setAttribute("class","button rounded red");
                   // update status to database
-                  updateObj[this.name] = false;
+                  updateObj[this.id] = false;
                   ref.update(updateObj);
                 } else {
                   this.value = "Open";
-                  this.style.backgroundColor = "Green";
+                  this.setAttribute("class","button rounded green");
                   // update status to database
-                  updateObj[this.name] = true;
+                  updateObj[this.id] = true;
                   ref.update(updateObj);
                 }
               } else {
@@ -90,12 +88,13 @@
         ref.on("value", function(snap) {
           var obj = snap.val(), ct = 0;
           for (var key in obj) {
+            if (ct >= 2*k*k) break;
             if (obj[key]) {
               btns[ct].value = "Open";
-              btns[ct].style.backgroundColor = "Green";
+              btns[ct].setAttribute("class","button rounded green");
             } else {
               btns[ct].value = "Occupied";
-              btns[ct].style.backgroundColor = "Red";
+              btns[ct].setAttribute("class","button rounded red");
             }
             ct++;
           }
@@ -108,16 +107,10 @@
       /*
       // set buttons to database
       var usersRef = webDataRef.child("buttons");
-      usersRef.set({
-        "B0": true,
-        "B1": true,
-        "B2": false,
-        "B3": true,
-        "B4": true,
-        "B5": true,
-        "B6": true,
-        "B7": true,
-      });
+      usersRef.remove();
+      for (var i=0;i<2*k*k;i++){
+        usersRef.child(i).set(true);
+      }
       */
     </script>
     <noscript>
