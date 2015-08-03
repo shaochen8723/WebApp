@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta name="Author" cotent="Chen Shao" />
+    <link rel="stylesheet" type="button/css" href="button.css" />
+    
+    <title>Web App for Classkick</title>
+    <!-- Link to external JavaScript -->
+    <script src="https://cdn.firebase.com/js/client/2.2.9/firebase.js"></script>
+    
+  </head>
+  <body>
+    <input type="button" class="greenButton" id="connInd" value="Undefined" />
+    <br />
+    <br />
+    <input type="button" id="ChangePage" onclick="location.href='draw.html';" value="Draw" />
+    <br />
+    <br />
+    <script language="javascript" type="text/javascript">
+      // Create a reference to the database for this web app
+      var webDataRef = new Firebase("https://resplendent-fire-623.firebaseio.com/");
+      
+      // Test connection to database
+      var connInd = document.getElementById("connInd");
+      var canMakeChange;
+      webDataRef.child(".info/connected").on("value", function(snap) {
+        if (snap.val() === true) {
+          connInd.value = "Online! Enjoy Playing!";
+          connInd.style.backgroundColor = "Green";
+          canMakeChange = true;
+        } else {
+          connInd.value = "Offline! Check Network!";
+          connInd.style.backgroundColor = "Red";
+          canMakeChange = false;
+        }
+      });
+      
+      // Add buttons
+      var k = 2;  // set k value
+      var btns = addButtons(k, webDataRef.child("buttons"));
+      
+      function addButtons(k, ref) {
+        var numId = 0;
+        var btns = {};
+        for (var i=0;i<2*k;i++) {
+          // 2*k rows of buttons
+          for (var j=0;j<k;j++) {
+            // k buttons per row
+            numId = i * k + j;
+            btns[numId] = document.createElement("button");
+            btns[numId].style.width = "300px";
+            btns[numId].style.height = "100px";
+            // set current state from database
+            btns[numId].style.backgroundColor = "White";
+            btns[numId].id = numId;
+            btns[numId].name = "B"+String(numId);
+            btns[numId].value = "Open";
+            btns[numId].onclick = function() {
+              // change buttons status when clicked and update to Firebase
+              if (canMakeChange) {
+                var updateObj = {};
+                if (this.value == "Open") {
+                  this.value = "Occupied";
+                  this.style.backgroundColor = "Red";
+                  // update status to database
+                  updateObj[this.name] = false;
+                  ref.update(updateObj);
+                } else {
+                  this.value = "Open";
+                  this.style.backgroundColor = "Green";
+                  // update status to database
+                  updateObj[this.name] = true;
+                  ref.update(updateObj);
+                }
+              } else {
+                alert("Connection to Firebase Lost. Check Internet setting before playing!");
+              }
+            }
+            document.body.appendChild(btns[numId]);
+          }
+          document.write("<br>");
+        }
+        return btns;
+      };
+
+      // sync to Firebase database and update button status
+      btns = updateStatus(webDataRef.child("buttons"), k, btns);
+      
+      function updateStatus(ref, k, btns) {
+        ref.on("value", function(snap) {
+          var obj = snap.val(), ct = 0;
+          for (var key in obj) {
+            if (obj[key]) {
+              btns[ct].value = "Open";
+              btns[ct].style.backgroundColor = "Green";
+            } else {
+              btns[ct].value = "Occupied";
+              btns[ct].style.backgroundColor = "Red";
+            }
+            ct++;
+          }
+        }, function (errorObject) {
+          alert("No data received");
+        });
+        return btns;
+      };
+      
+      /*
+      // set buttons to database
+      var usersRef = webDataRef.child("buttons");
+      usersRef.set({
+        "B0": true,
+        "B1": true,
+        "B2": false,
+        "B3": true,
+        "B4": true,
+        "B5": true,
+        "B6": true,
+        "B7": true,
+      });
+      */
+    </script>
+    <noscript>
+      <h3>This site requires JavaScript</h3>
+    </noscript>
+  </body>
+</html>

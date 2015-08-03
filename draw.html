@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta name="Author" cotent="Chen Shao" />
+    <link rel="stylesheet" type="button/css" href="button.css" />
+    <link rel="stylesheet" type="text/css" href="canvas.css" />
+    
+    <title>Drawing</title>
+    <!-- Link to external JavaScript -->
+    <script src="https://cdn.firebase.com/js/client/2.2.9/firebase.js"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.9.0/jquery.min.js"></script>
+    
+    <script>
+      $(document).ready(function () {
+        //Set up some globals
+        var ele = document.getElementById("penColor");
+        var currentColor = ele.options[ele.selectedIndex].value;
+        var t = 0.5;
+        var paint = false;
+        var clickX = new Array();
+        var clickY = new Array();
+        var clickDrag = new Array();
+        var ctlPts = new Array();  // store control point 1 for Bezier curve
+        var lineId;   // id of line to be updated on Firebase
+        var lineMax=0;  // keep track max line number to make sure unique assignment of id
+        var erase = false;
+        var tol = 5;
+        
+        // choose pen color for drawing
+        var btnPen = document.getElementById("btnChoosePen");
+        btnPen.onclick = function(){
+          ele = document.getElementById("penColor");
+          currentColor = ele.options[ele.selectedIndex].value;
+          erase = false;
+        }
+        
+        // find if erase is activated
+        var btnEraser = document.getElementById("btnEraser");
+        btnEraser.onclick = function(){
+          erase = true;
+        }
+        
+        // Set up our canvas
+        var canvas = document.getElementById('canvas');
+        var context = canvas.getContext ? canvas.getContext('2d') : null;
+        if (context == null) {
+          alert("You must use a browser that supports HTML5 Canvas to draw.");
+          return;
+        }
+        
+        context.lineJoin = "round";
+        context.lineWidth = 5;
+        
+        //Create a reference to the pixel data for our drawing.
+        var webDataRef = new Firebase('https://resplendent-fire-623.firebaseio.com/');
+        var pixelDataRef = webDataRef.child("draw");
+        
+        // Test connection to database
+        var connInd = document.getElementById("connInd");
+        var canMakeChange;
+        webDataRef.child(".info/connected").on("value", function(snap) {
+          if (snap.val() === true) {
+            connInd.value = "Online! Enjoy Playing!";
+            connInd.style.backgroundColor = "Green";
+            canMakeChange = true;
+          } else {
+            connInd.value = "Offline! Check Network!";
+            connInd.style.backgroundColor = "Red";
+            canMakeChange = false;
+          }
+        });
+      
+        // retrieve any existing lines from Firebase
+        pixelDataRef.on("value", function(snapshot) {
+          context.clearRect(0, 0, canvas.width, canvas.height);
+          var obj = snapshot.val();
+          for (var key in obj) {
+            //console.log(key)
+            drawOnCanvas(obj[key]);
+            if (Number(key) > lineMax) {
+              lineMax = Number(key);
+            }
+          }
+        }, function (errorObject) {
+          console.log("The read failed: " + errorObject.code);
+        });
+        
+        function drawOnCanvas(obj) {
+          //draw lines on canvas with data from Firebase
+          for (var key in obj) {
+            context.strokeStyle = "#"+obj[key];
+            context.beginPath();
+            var coords = key.split(":");
+            context.moveTo(parseInt(coords[0]), parseInt(coords[1]));
+            if (obj[key]) {
+              context.bezierCurveTo(parseInt(coords[4]), parseInt(coords[5]), parseInt(coords[6]), parseInt(coords[7]), parseInt(coords[2]), parseInt(coords[3]));
+            } else {
+              context.lineTo(parseInt(coords[2]), parseInt(coords[3]));
+            }
+            context.closePath();
+            context.stroke();
+          }
+        }
+        
+        // track mouse status
+         $('#canvas').mousedown(function(e){
+          if (!canMakeChange) {
+            alert("Connection to Firebase Lost. Check Internet setting before drawing!");
+          }
+         
+          var mouseX = e.pageX - this.offsetLeft;
+          var mouseY = e.pageY - this.offsetTop;
+          paint = true;
+          if (!erase){
+            addClick(mouseX,mouseY, false);
+            drawLine();
+          } else {
+            eraseLine(mouseX,mouseY);
+          }
+        });
+
+         $('#canvas').mousemove(function(e){
+          if (!erase){
+            if(paint){
+              addClick(e.pageX - this.offsetLeft, e.pageY - this.offsetTop, true);
+              drawLine();
+            }
+          } else {
+            if (paint) eraseLine(e.pageX - this.offsetLeft, e.pageY - this.offsetTop);
+          }
+        });
+
+         $('#canvas').mouseup(function(e){
+          paint = false;
+          // clear array 
+          clickX = [];
+          clickY = [];
+          clickDrag = [];
+          ctlPts = [];
+        });
+
+         $('#canvas').mouseleave(function(e){
+          paint = false;
+          // clear array 
+          clickX = [];
+          clickY = [];
+          clickDrag = [];
+          ctlPts = [];
+        });
+
+        function addClick(x, y, dragging){
+          clickX.push(x);
+          clickY.push(y);
+          clickDrag.push(dragging);
+          if (!dragging) lineId = lineMax+1;
+        }
+        
+        // calculate control points for Bezier Curve
+        function calcCP(){
+          if (clickX.length < 3) ctlPts = null;
+          ctlPts = getControlPoints(clickX[clickX.length-3],clickY[clickY.length-3],clickX[clickX.length-2],clickY[clickX.length-2],clickX[clickX.length-1],clickY[clickX.length-1],t); 
+        }
+        
+        function getControlPoints(x0,y0,x1,y1,x2,y2,t) {
+          // calc. control points for quadratic bezier curve
+          var d01=Math.sqrt(Math.pow(x1-x0,2)+Math.pow(y1-y0,2));
+          var d12=Math.sqrt(Math.pow(x2-x1,2)+Math.pow(y2-y1,2));
+          var fa=t*d01/(d01+d12);   // scaling factor for triangle Ta
+          var fb=t*d12/(d01+d12);   // ditto for Tb, simplifies to fb=t-fa
+          var p1x=x1-fa*(x2-x0);    // x2-x0 is the width of triangle T
+          var p1y=y1-fa*(y2-y0);    // y2-y0 is the height of T
+          var p2x=x1+fb*(x2-x0);
+          var p2y=y1+fb*(y2-y0);  
+          return [Math.round(p1x),Math.round(p1y),Math.round(p2x),Math.round(p2y)];
+        };
+
+        function eraseLine(mouseX,mouseY){
+          // check current point with points at Firebase
+          // delete entire line once a match is found
+          var deleteUrl = []; // ref to lines to be deleted
+          pixelDataRef.on("value", function(snapshot) {
+            var obj = snapshot.val();
+            for (var key in obj) {
+              for (var pts in obj[key]) {
+                var coords = pts.split(":");
+                // search for lines that contains current point
+                if (Math.abs(mouseX-coords[0])<tol && Math.abs(mouseY-coords[1])<tol) {
+                  deleteUrl.push('https://resplendent-fire-623.firebaseio.com/draw/'+String(key));
+                  break;
+                }
+              }
+            }
+          }, function (errorObject) {
+            console.log("The read failed: " + errorObject.code);
+          });
+          // delete lines
+          for (var i=0;i<deleteUrl.length;i++) {
+            var deleteRef = new Firebase(deleteUrl[i]);
+            deleteRef.remove();
+          }
+        }
+        
+        function drawLine(){
+          // calc ctl points for current point series
+          calcCP();
+          var id;
+          if (clickX.length < 3) {
+            // direct connection with lineTo
+            if (clickDrag[clickDrag.length-1]) {
+              id = clickX[clickX.length-1] + ":" + clickY[clickY.length-1];
+            } else {
+              id = clickX[clickX.length-2] + ":" + clickY[clickY.length-2];
+            }
+            id = id + ":" + clickX[clickX.length-1] + ":" + clickY[clickY.length-1];
+          } else {
+            // Bezier style lines with start, end, 2 control points
+            id = clickX[clickX.length-2] + ":" + clickY[clickY.length-2];
+            id = id + ":" + clickX[clickX.length-1] + ":" + clickY[clickY.length-1];
+            id = id + ":" + ctlPts[0] + ":" + ctlPts[1];
+            id = id + ":" + ctlPts[2] + ":" + ctlPts[3];
+          }
+          //console.log(id)
+          // update line on Firebase database
+          var updateRef = pixelDataRef.child(String(lineId));
+          var updateObj = {};
+          updateObj[id] = currentColor;
+          updateRef.update(updateObj);
+        }
+      });            
+    </script>
+  </head>
+  <body>
+    <input type="button" class="greenButton" id="connInd" value="Undefined" />
+    <br />
+    <br />
+    <input type="button" id="ChangePage" onclick="location.href='index.html';" value="Press" />
+    <br />
+    <br />
+    <h3>Choose Pen Color</h3>
+    <select id="penColor">
+      <option value="000000" selected="selected">Black</option>
+      <option value="008000">Green</option>
+      <option value="FF00FF">Magenta</option>
+      <option value="0000CD">Blue</option>
+      <option value="FF0000">Red</option>
+      <option value="FFFF00">Yellow</option>
+    </select>
+    <input type="button" id="btnChoosePen" value="Select" />
+    <input type="button" id="btnEraser" value="Erase" />
+    <br />
+    <br />
+    <div class="l-demo-container">
+      <canvas id="canvas" width="600px" height="400px" style="border:1px solid #000000;">
+      </canvas>
+    </div>
+  </body>
+</html>
