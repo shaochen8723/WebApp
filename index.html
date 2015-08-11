@@ -2,12 +2,123 @@
 <html>
   <head>
     <meta name="Author" cotent="Chen Shao" />
-    <link rel="stylesheet" type="text/css" href="style.css" />
     
-    <title>Web App for Classkick</title>
+    <meta charset="UTF-8">
+    
+    <title>Web App</title>
+    
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    
     <!-- Link to external JavaScript -->
     <script src="https://cdn.firebase.com/js/client/2.2.9/firebase.js"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/2.1.3/jquery.min.js"></script>
+    <link rel="stylesheet" href="http://code.jquery.com/mobile/1.4.5/jquery.mobile-1.4.5.min.css" />
+    <script src="http://code.jquery.com/jquery-1.11.1.min.js"></script>
+    <script src="http://code.jquery.com/mobile/1.4.5/jquery.mobile-1.4.5.min.js"></script>
     
+    <link rel="stylesheet" type="text/css" href="style.css" />
+    
+    <script language="javascript" type="text/javascript">
+      $(document).ready(function () {
+        // Create a reference to the database for this web app
+        var webDataRef = new Firebase("https://resplendent-fire-623.firebaseio.com/");
+      
+        // Test connection to database
+        var connInd = document.getElementById("connInd");
+        var canMakeChange;
+        webDataRef.child(".info/connected").on("value", function(snap) {
+          if (snap.val() === true) {
+            connInd.value = "Online! Enjoy Playing!";
+            connInd.setAttribute("class","button square green");
+            canMakeChange = true;
+          } else {
+            connInd.value = "Offline! Check Network!";
+            connInd.setAttribute("class","button square red");
+            canMakeChange = false;
+          }
+        });
+      
+        console.log(connInd.value)
+        
+        // Add buttons
+        var k = 4;  // set k value, can be changed from 2 ~ 12
+        var btns = addButtons(k, webDataRef.child("buttons"));
+      
+        function addButtons(k, ref) {
+          var numId = 0;
+          var btns = {};
+          for (var i=0;i<2*k;i++) {
+            // 2*k rows of buttons
+            for (var j=0;j<k;j++) {
+              // k buttons per row
+              numId = i * k + j;
+            
+              // styling created buttons
+              btns[numId] = document.createElement("button");
+              btns[numId].setAttribute("class","button rounded green");
+              btns[numId].id = numId;
+              btns[numId].value = "Open";
+              btns[numId].onclick = function() {
+                // change buttons status when clicked and update to Firebase
+                if (canMakeChange) {
+                  var updateObj = {};
+                  if (this.value == "Open") {
+                    this.value = "Occupied";
+                    this.setAttribute("class","button rounded red");
+                    // update status to database
+                    updateObj[this.id] = false;
+                    ref.update(updateObj);
+                  } else {
+                    this.value = "Open";
+                    this.setAttribute("class","button rounded green");
+                    // update status to database
+                    updateObj[this.id] = true;
+                    ref.update(updateObj);
+                  }
+                } else {
+                  alert("Connection to Firebase Lost. Check Internet setting before playing!");
+                }
+              }
+              document.body.appendChild(btns[numId]);
+            }
+            document.write("<br>");
+          }
+          return btns;
+        };
+
+        // sync to Firebase database and update button status
+        btns = updateStatus(webDataRef.child("buttons"), k, btns);
+      
+        function updateStatus(ref, k, btns) {
+          ref.on("value", function(snap) {
+            var obj = snap.val(), ct = 0;
+            for (var key in obj) {
+              if (ct >= 2*k*k) break;
+              if (obj[key]) {
+                btns[ct].value = "Open";
+                btns[ct].setAttribute("class","button rounded green");
+              } else {
+                btns[ct].value = "Occupied";
+                btns[ct].setAttribute("class","button rounded red");
+              }
+              ct++;
+            }
+          }, function (errorObject) {
+            alert("No data received");
+          });
+          return btns;
+        };
+      
+        /*
+        // set buttons to database
+        var usersRef = webDataRef.child("buttons");
+        usersRef.remove();
+        for (var i=0;i<2*k*k;i++){
+          usersRef.child(i).set(true);
+        }
+        */
+      });
+    </script>
   </head>
   <body>
     <input type="button" class="button green square" id="connInd" value="Undefined" />
@@ -16,103 +127,7 @@
     <input type="button" class="button square blue" id="ChangePage" onclick="location.href='draw.html';" value="Draw" />
     <br />
     <br />
-    <script language="javascript" type="text/javascript">
-      // Create a reference to the database for this web app
-      var webDataRef = new Firebase("https://resplendent-fire-623.firebaseio.com/");
-      
-      // Test connection to database
-      var connInd = document.getElementById("connInd");
-      var canMakeChange;
-      webDataRef.child(".info/connected").on("value", function(snap) {
-        if (snap.val() === true) {
-          connInd.value = "Online! Enjoy Playing!";
-          connInd.setAttribute("class","button square green");
-          canMakeChange = true;
-        } else {
-          connInd.value = "Offline! Check Network!";
-          connInd.setAttribute("class","button square red");
-          canMakeChange = false;
-        }
-      });
-      
-      // Add buttons
-      var k = 4;  // set k value, can be changed from 2 ~ 12
-      var btns = addButtons(k, webDataRef.child("buttons"));
-      
-      function addButtons(k, ref) {
-        var numId = 0;
-        var btns = {};
-        for (var i=0;i<2*k;i++) {
-          // 2*k rows of buttons
-          for (var j=0;j<k;j++) {
-            // k buttons per row
-            numId = i * k + j;
-            
-            // styling created buttons
-            btns[numId] = document.createElement("button");
-            btns[numId].setAttribute("class","button rounded green");
-            btns[numId].id = numId;
-            btns[numId].value = "Open";
-            btns[numId].onclick = function() {
-              // change buttons status when clicked and update to Firebase
-              if (canMakeChange) {
-                var updateObj = {};
-                if (this.value == "Open") {
-                  this.value = "Occupied";
-                  this.setAttribute("class","button rounded red");
-                  // update status to database
-                  updateObj[this.id] = false;
-                  ref.update(updateObj);
-                } else {
-                  this.value = "Open";
-                  this.setAttribute("class","button rounded green");
-                  // update status to database
-                  updateObj[this.id] = true;
-                  ref.update(updateObj);
-                }
-              } else {
-                alert("Connection to Firebase Lost. Check Internet setting before playing!");
-              }
-            }
-            document.body.appendChild(btns[numId]);
-          }
-          document.write("<br>");
-        }
-        return btns;
-      };
-
-      // sync to Firebase database and update button status
-      btns = updateStatus(webDataRef.child("buttons"), k, btns);
-      
-      function updateStatus(ref, k, btns) {
-        ref.on("value", function(snap) {
-          var obj = snap.val(), ct = 0;
-          for (var key in obj) {
-            if (ct >= 2*k*k) break;
-            if (obj[key]) {
-              btns[ct].value = "Open";
-              btns[ct].setAttribute("class","button rounded green");
-            } else {
-              btns[ct].value = "Occupied";
-              btns[ct].setAttribute("class","button rounded red");
-            }
-            ct++;
-          }
-        }, function (errorObject) {
-          alert("No data received");
-        });
-        return btns;
-      };
-      
-      /*
-      // set buttons to database
-      var usersRef = webDataRef.child("buttons");
-      usersRef.remove();
-      for (var i=0;i<2*k*k;i++){
-        usersRef.child(i).set(true);
-      }
-      */
-    </script>
+    
     <noscript>
       <h3>This site requires JavaScript</h3>
     </noscript>
